@@ -135,6 +135,8 @@ pair_df_filtered_males <- subset(pair_df_filtered_males,
                                  Ind1_sampling - Ind1_birth >= male.first.repro)
 
 # Remove potential parents that did not reach age at maturity when offspring was conceived
+# This removes some identified POPs. Because they are males that were 3 when offspring was born, 
+# so technically 2yo when offspring was conceived. 
 pair_df_filtered_males <- subset(pair_df_filtered_males,
                                  (Ind2_birth-1) - Ind1_birth >= male.first.repro)
 
@@ -375,9 +377,14 @@ pop_mom_all_array[is.na(pop_mom_all_array)] <- 0
 POP_model_female <- nimbleCode({
   
   # Priors
-  Nf ~ dunif(1, 10000) # Uniform prior for abundance
+  # Nf ~ dunif(1, 10000) # Uniform prior for abundance
   rf ~ dunif(-0.5, 0.5) # Uniform prior for population growth
 
+  # Jeffreys scale approximation prior for abundance
+  T_Nf ~ dnegbin(psi_Nf, 1)
+  Nf <- T_Nf + 1 
+  psi_Nf ~dbeta(1e-6, 1)
+  
   # Kinship probabilities
     for (b2 in 1:pop_mom_length_b2){ # For each birth year of offspring
     
@@ -407,7 +414,8 @@ my.data <- list(
 )
 
 # Parameters
-initial.values <- function() list(Nf = rnorm(1, mean = 5000, sd = 1000), 
+initial.values <- function() list(T_Nf = round(pmax(10, rnorm(1, mean = 2999, sd = 1000))),
+                                  psi_Nf = runif(1, 0.01, 0.1), 
                                   rf = rnorm(1, mean = 0, sd = 0.05))
 
 parameters.to.save <- c("Nf", "rf")
@@ -459,8 +467,13 @@ rf
 POP_model_male <- nimbleCode({
   
   # Priors
-  Nm ~ dunif(1, 10000)
+  # Nm ~ dunif(1, 10000)
   rm ~ dunif(-0.5, 0.5)
+  
+  # Jeffreys scale approximation prior for abundance
+  T_Nm ~ dnegbin(psi_Nm, 1)
+  Nm <- T_Nm + 1 
+  psi_Nm ~dbeta(1e-6, 1)
   
   # Kinship probabilities
   for (b2 in 1:pop_dad_length_b2){ # For each **conception** year of offspring (birth year -1)
@@ -507,7 +520,8 @@ my.data <- list(
 )
 
 # Parameters
-initial.values <- function() list(Nm = rnorm(1, mean = 5000, sd = 1000), 
+initial.values <- function() list(T_Nm = round(pmax(10, rnorm(1, mean = 2999, sd = 1000))),
+                                  psi_Nm = runif(1, 0.01, 0.1), 
                                   rm = rnorm(1, mean = 0, sd = 0.05))
 
 parameters.to.save <- c("Nm", "rm")
